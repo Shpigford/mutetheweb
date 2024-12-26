@@ -215,6 +215,23 @@
             background: white;
             margin: 0;
         }
+
+        .clear-cache {
+            background: #f3f4f6;
+            color: #666;
+            border: 1px solid #ddd;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+
+        .clear-cache:hover {
+            background: #e5e7eb;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -263,6 +280,13 @@
                     <span class="slider"></span>
                 </label>
             </div>
+            <div class="toggle-group">
+                <label for="blur-mode">Blur Instead of Hide</label>
+                <label class="switch">
+                    <input type="checkbox" id="blur-mode">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
         <div class="stats-group">
             <div class="stats-header">
@@ -270,6 +294,7 @@
                 <button class="show-filtered" id="showFiltered">Show Filtered</button>
             </div>
             <div class="filtered-count" id="filteredCount">0</div>
+            <button class="clear-cache" id="clearCache">Clear Cache</button>
         </div>
         <div id="status" class="status"></div>
     </div>

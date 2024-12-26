@@ -16,6 +16,23 @@ style.textContent = `
         display: none !important;
     }
     
+    /* Blur mode styles */
+    .content-blurred {
+        filter: blur(10px) !important;
+        user-select: none !important;
+        cursor: pointer !important;
+        transition: filter 0.3s ease !important;
+    }
+
+    .content-blurred:hover {
+        filter: blur(8px) !important;
+    }
+
+    .content-blurred.revealed {
+        filter: none !important;
+        user-select: auto !important;
+    }
+    
     /* Reddit-specific hiding */
     shreddit-comment.content-hidden {
         opacity: 0.3 !important;
@@ -68,6 +85,27 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'showFilteredPosts') {
         showFiltered = !showFiltered;
         document.body.classList.toggle('cynic-show-filtered');
+        sendResponse({ success: true });
+    } else if (message.action === 'updateBlurMode') {
+        // Update existing filtered posts when blur mode changes
+        const filteredPosts = document.querySelectorAll('.content-hidden, .content-blurred');
+        filteredPosts.forEach(post => {
+            if (message.blurMode) {
+                post.classList.remove('content-hidden');
+                post.classList.add('content-blurred');
+                // Add click handler
+                post.addEventListener('click', function(e) {
+                    if (this.classList.contains('content-blurred')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.classList.add('revealed');
+                    }
+                }, true);
+            } else {
+                post.classList.remove('content-blurred', 'revealed');
+                post.classList.add('content-hidden');
+            }
+        });
         sendResponse({ success: true });
     }
 });
@@ -147,6 +185,67 @@ async function analyzeContent(text) {
     }
 }
 
+// Cache duration in milliseconds (24 hours)
+const CACHE_DURATION = 24 * 60 * 60 * 1000;
+
+// Get post ID based on platform
+function getPostId(postElement, platform) {
+    if (platform === 'x') {
+        // For Twitter/X, try to get the tweet ID from the article
+        const articleLink = postElement.querySelector('a[href*="/status/"]');
+        if (articleLink) {
+            const match = articleLink.href.match(/\/status\/(\d+)/);
+            return match ? match[1] : null;
+        }
+    } else if (platform === 'reddit') {
+        // For Reddit, use the comment ID
+        return postElement.id;
+    }
+    return null;
+}
+
+// Check if a post is in cache
+async function isPostCached(postId) {
+    if (!postId) return false;
+    
+    const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
+    const cachedPost = processedPosts[postId];
+    
+    if (!cachedPost) return false;
+    
+    // Check if cache has expired
+    if (Date.now() - cachedPost.timestamp > CACHE_DURATION) {
+        // Remove expired cache entry
+        delete processedPosts[postId];
+        await chrome.storage.local.set({ processedPosts });
+        return false;
+    }
+    
+    return true;
+}
+
+// Cache a processed post
+async function cacheProcessedPost(postId) {
+    if (!postId) return;
+    
+    const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
+    
+    // Add new post to cache
+    processedPosts[postId] = {
+        timestamp: Date.now()
+    };
+    
+    // Clean up old entries
+    const now = Date.now();
+    Object.entries(processedPosts).forEach(([id, data]) => {
+        if (now - data.timestamp > CACHE_DURATION) {
+            delete processedPosts[id];
+        }
+    });
+    
+    await chrome.storage.local.set({ processedPosts });
+}
+
 // Process a single post
 async function processPost(postElement, platform) {
     if (!isExtensionValid()) {
@@ -155,7 +254,15 @@ async function processPost(postElement, platform) {
         return;
     }
 
-    // Skip if we've already processed this post
+    const postId = getPostId(postElement, platform);
+    
+    // Skip if post is already in cache
+    if (await isPostCached(postId)) {
+        console.log('📦 Post found in cache, skipping analysis:', postId);
+        return;
+    }
+
+    // Skip if we've already processed this post in this session
     if (postElement.hasAttribute('data-content-processed')) {
         return;
     }
@@ -169,8 +276,7 @@ async function processPost(postElement, platform) {
     const scores = await analyzeContent(text);
     if (!scores) return;
 
-    // Get current filter settings
-    chrome.storage.local.get(['filterSettings'], async (result) => {
+    chrome.storage.local.get(['filterSettings', 'blurMode'], async (result) => {
         const filterSettings = result.filterSettings || {
             cynical: true,
             sarcastic: false,
@@ -178,11 +284,27 @@ async function processPost(postElement, platform) {
             threatening: false
         };
 
+        const blurMode = result.blurMode || false;
+
         // Check each filter type
         for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
             if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
-                console.log(`🚫 Post hidden - ${filterType} score:`, scores[filterType]);
-                postElement.classList.add('content-hidden');
+                console.log(`🚫 Post ${blurMode ? 'blurred' : 'hidden'} - ${filterType} score:`, scores[filterType]);
+                
+                if (blurMode) {
+                    postElement.classList.add('content-blurred');
+                    // Add click handler for revealing blurred content
+                    postElement.addEventListener('click', function(e) {
+                        if (this.classList.contains('content-blurred')) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.classList.add('revealed');
+                        }
+                    }, true);
+                } else {
+                    postElement.classList.add('content-hidden');
+                }
+                
                 postElement.setAttribute('data-filter-type', filterType);
                 
                 // Store the filtered post in storage
@@ -202,8 +324,11 @@ async function processPost(postElement, platform) {
                 break; // Stop after first matching filter
             }
         }
+
+        // Cache the processed post
+        await cacheProcessedPost(postId);
     });
-    
+
     // Mark as processed
     postElement.setAttribute('data-content-processed', 'true');
 }

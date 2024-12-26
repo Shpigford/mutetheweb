@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
     const filteredCountDiv = document.getElementById('filteredCount');
     const showFilteredButton = document.getElementById('showFiltered');
+    const blurModeToggle = document.getElementById('blur-mode');
 
     // Filter toggles
     const filterToggles = {
@@ -15,10 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Load saved settings and filtered count
-    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts', 'filterSettings'], (result) => {
+    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts', 'filterSettings', 'blurMode', 'processedPosts'], (result) => {
         console.log('📥 Loading saved settings:', { 
             hasApiKey: !!result.apiKey,
-            isEnabled: result.isEnabled 
+            isEnabled: result.isEnabled,
+            blurMode: result.blurMode,
+            cachedPostsCount: Object.keys(result.processedPosts || {}).length
         });
         
         if (result.apiKey) {
@@ -26,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (typeof result.isEnabled !== 'undefined') {
             enabledToggle.checked = result.isEnabled;
+        }
+        if (typeof result.blurMode !== 'undefined') {
+            blurModeToggle.checked = result.blurMode;
         }
 
         // Load filter settings
@@ -43,9 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Update filtered posts count
+        // Update stats
         const filteredCount = result.filteredPosts?.length || 0;
-        filteredCountDiv.textContent = filteredCount;
+        const cachedCount = Object.keys(result.processedPosts || {}).length;
+        filteredCountDiv.textContent = `${filteredCount} (${cachedCount} cached)`;
         showFilteredButton.style.display = filteredCount > 0 ? 'block' : 'none';
     });
 
@@ -126,6 +133,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Save blur mode setting when changed
+    blurModeToggle.addEventListener('change', () => {
+        chrome.storage.local.set({ blurMode: blurModeToggle.checked }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Error saving blur mode setting:', chrome.runtime.lastError);
+                showStatus('Error saving blur mode setting!', 'error');
+            } else {
+                console.log('✅ Blur mode setting saved:', blurModeToggle.checked);
+                showStatus(`Blur mode ${blurModeToggle.checked ? 'enabled' : 'disabled'}!`, 'success');
+                
+                // Notify content script of the change
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs[0]) {
+                        chrome.tabs.sendMessage(tabs[0].id, { 
+                            action: 'updateBlurMode',
+                            blurMode: blurModeToggle.checked
+                        });
+                    }
+                });
+            }
+        });
+    });
+
     // Helper function to show status messages
     function showStatus(message, type) {
         console.log(`📢 Status message (${type}):`, message);
@@ -135,5 +165,30 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             statusDiv.style.display = 'none';
         }, 3000);
+    }
+
+    // Clear cache function
+    function clearCache() {
+        chrome.storage.local.set({ processedPosts: {} }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Error clearing cache:', chrome.runtime.lastError);
+                showStatus('Error clearing cache!', 'error');
+            } else {
+                console.log('✅ Cache cleared');
+                showStatus('Cache cleared!', 'success');
+                // Update stats
+                chrome.storage.local.get(['filteredPosts', 'processedPosts'], (result) => {
+                    const filteredCount = result.filteredPosts?.length || 0;
+                    const cachedCount = Object.keys(result.processedPosts || {}).length;
+                    filteredCountDiv.textContent = `${filteredCount} (${cachedCount} cached)`;
+                });
+            }
+        });
+    }
+
+    // Add clear cache button event listener
+    const clearCacheButton = document.getElementById('clearCache');
+    if (clearCacheButton) {
+        clearCacheButton.addEventListener('click', clearCache);
     }
 }); 
