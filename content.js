@@ -233,14 +233,15 @@ async function isPostCached(tweetId) {
 }
 
 // Cache a processed tweet
-async function cacheProcessedPost(tweetId) {
+async function cacheProcessedPost(tweetId, scores) {
     if (!tweetId) return;
     
     const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
     
-    // Add new tweet to cache
+    // Add new tweet to cache with scores
     processedPosts[tweetId] = {
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        scores: scores
     };
     
     // Clean up old entries
@@ -264,12 +265,6 @@ async function processTweet(tweetElement) {
 
     const tweetId = getTweetId(tweetElement);
     
-    // Skip if tweet is already in cache
-    if (await isPostCached(tweetId)) {
-        debugLog('📦 Tweet found in cache, skipping analysis:', tweetId);
-        return;
-    }
-
     // Skip if we've already processed this tweet in this session
     if (tweetElement.hasAttribute('data-content-processed')) {
         return;
@@ -281,59 +276,70 @@ async function processTweet(tweetElement) {
         return;
     }
 
-    return analyzeContent(text).then(scores => {
-        if (!scores) return;
+    // Check for cached scores
+    const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
+    const cachedPost = processedPosts[tweetId];
+    
+    let scores;
+    if (cachedPost && cachedPost.scores && Date.now() - cachedPost.timestamp <= CACHE_DURATION) {
+        debugLog('📦 Using cached scores for tweet:', tweetId);
+        scores = cachedPost.scores;
+    } else {
+        scores = await analyzeContent(text);
+        if (scores) {
+            await cacheProcessedPost(tweetId, scores);
+        }
+    }
 
-        chrome.storage.local.get(['filterSettings', 'blurMode'], async (result) => {
-            const filterSettings = result.filterSettings || {
-                cynical: true,
-                sarcastic: false,
-                aggressive: false,
-                threatening: false
-            };
+    if (!scores) return;
 
-            const blurMode = result.blurMode || false;
+    chrome.storage.local.get(['filterSettings', 'blurMode'], async (result) => {
+        const filterSettings = result.filterSettings || {
+            cynical: true,
+            sarcastic: false,
+            aggressive: false,
+            threatening: false
+        };
 
-            // Check each filter type
-            for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
-                if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
-                    debugLog(`🚫 Tweet ${blurMode ? 'blurred' : 'hidden'} - ${filterType} score:`, scores[filterType]);
-                    
-                    if (blurMode) {
-                        tweetElement.classList.add('content-blurred');
-                        // Add click handler for revealing blurred content
-                        tweetElement.addEventListener('click', function(e) {
-                            if (this.classList.contains('content-blurred')) {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                this.classList.add('revealed');
-                            }
-                        }, true);
-                    } else {
-                        tweetElement.classList.add('content-hidden');
-                    }
-                    
-                    tweetElement.setAttribute('data-filter-type', filterType);
-                    
-                    // Store the filtered tweet in storage
-                    chrome.storage.local.get(['filteredPosts'], (result) => {
-                        const filteredPosts = result.filteredPosts || [];
-                        const newPost = {
-                            text: text,
-                            scores: scores,
-                            filterType: filterType,
-                            url: window.location.href,
-                            timestamp: Date.now()
-                        };
-                        const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
-                        chrome.storage.local.set({ filteredPosts: updatedPosts });
-                    });
+        const blurMode = result.blurMode || false;
+
+        // Check each filter type
+        for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
+            if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
+                debugLog(`🚫 Tweet ${blurMode ? 'blurred' : 'hidden'} - ${filterType} score:`, scores[filterType]);
+                
+                if (blurMode) {
+                    tweetElement.classList.add('content-blurred');
+                    // Add click handler for revealing blurred content
+                    tweetElement.addEventListener('click', function(e) {
+                        if (this.classList.contains('content-blurred')) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.classList.add('revealed');
+                        }
+                    }, true);
+                } else {
+                    tweetElement.classList.add('content-hidden');
                 }
+                
+                tweetElement.setAttribute('data-filter-type', filterType);
+                
+                // Store the filtered tweet in storage
+                chrome.storage.local.get(['filteredPosts'], (result) => {
+                    const filteredPosts = result.filteredPosts || [];
+                    const newPost = {
+                        text: text,
+                        scores: scores,
+                        filterType: filterType,
+                        url: window.location.href,
+                        timestamp: Date.now()
+                    };
+                    const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
+                    chrome.storage.local.set({ filteredPosts: updatedPosts });
+                });
+                break;
             }
-
-            // Cache the processed tweet
-            await cacheProcessedPost(tweetId);
-        });
+        }
 
         // Mark as processed
         tweetElement.setAttribute('data-content-processed', 'true');
