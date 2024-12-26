@@ -156,6 +156,47 @@
             color: var(--error-text);
         }
 
+        .stats-group {
+            background: #f9fafb;
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stats-header span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .show-filtered {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .show-filtered:hover {
+            background: var(--primary-hover);
+        }
+
+        .filtered-count {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
@@ -178,6 +219,13 @@
                 <input type="checkbox" id="enabled" checked>
                 <span class="slider"></span>
             </label>
+        </div>
+        <div class="stats-group">
+            <div class="stats-header">
+                <span>Filtered Posts</span>
+                <button class="show-filtered" id="showFiltered">Show Filtered</button>
+            </div>
+            <div class="filtered-count" id="filteredCount">0</div>
         </div>
         <div id="status" class="status"></div>
     </div>

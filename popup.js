@@ -3,9 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const apiKeyInput = document.getElementById('apiKey');
     const enabledToggle = document.getElementById('enabled');
     const statusDiv = document.getElementById('status');
+    const filteredCountDiv = document.getElementById('filteredCount');
+    const showFilteredButton = document.getElementById('showFiltered');
 
-    // Load saved settings
-    chrome.storage.local.get(['apiKey', 'isEnabled'], (result) => {
+    // Load saved settings and filtered count
+    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts'], (result) => {
         console.log('📥 Loading saved settings:', { 
             hasApiKey: !!result.apiKey,
             isEnabled: result.isEnabled 
@@ -17,6 +19,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof result.isEnabled !== 'undefined') {
             enabledToggle.checked = result.isEnabled;
         }
+        
+        // Update filtered posts count
+        const filteredCount = result.filteredPosts?.length || 0;
+        filteredCountDiv.textContent = filteredCount;
+        showFilteredButton.style.display = filteredCount > 0 ? 'block' : 'none';
+    });
+
+    // Show filtered posts
+    showFilteredButton.addEventListener('click', async () => {
+        console.log('🔍 Showing filtered posts');
+        
+        // Get the active tab
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        
+        // Send message to content script to show filtered posts
+        chrome.tabs.sendMessage(tab.id, { action: 'showFilteredPosts' }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Error showing filtered posts:', chrome.runtime.lastError);
+                showStatus('Error showing filtered posts!', 'error');
+            } else {
+                console.log('✅ Showing filtered posts');
+                showStatus('Showing filtered posts!', 'success');
+            }
+        });
     });
 
     // Save API key when changed

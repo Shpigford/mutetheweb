@@ -6,7 +6,7 @@ const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // Initialize extension settings only if they don't exist
 chrome.runtime.onInstalled.addListener(() => {
     console.log('🔧 Checking initial settings...');
-    chrome.storage.local.get(['apiKey', 'isEnabled'], (result) => {
+    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts'], (result) => {
         const updates = {};
         
         // Only set if not already set
@@ -18,6 +18,11 @@ chrome.runtime.onInstalled.addListener(() => {
         if (!result.apiKey) {
             updates.apiKey = '';
         }
+
+        // Initialize filtered posts if not exists
+        if (!result.filteredPosts) {
+            updates.filteredPosts = [];
+        }
         
         // Only save if we have updates to make
         if (Object.keys(updates).length > 0) {
@@ -27,7 +32,8 @@ chrome.runtime.onInstalled.addListener(() => {
         } else {
             console.log('✅ Using existing settings:', {
                 hasApiKey: !!result.apiKey,
-                isEnabled: result.isEnabled
+                isEnabled: result.isEnabled,
+                filteredPostsCount: result.filteredPosts?.length || 0
             });
         }
     });
@@ -138,6 +144,25 @@ Rating:`;
     }
 }
 
+// Function to update filtered posts
+async function updateFilteredPosts(text, score, url) {
+    const { filteredPosts = [] } = await chrome.storage.local.get(['filteredPosts']);
+    
+    // Add new filtered post
+    const newPost = {
+        text: text,
+        score: score,
+        url: url,
+        timestamp: Date.now()
+    };
+    
+    // Keep only the last 100 filtered posts
+    const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
+    
+    await chrome.storage.local.set({ filteredPosts: updatedPosts });
+    return updatedPosts.length;
+}
+
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'analyzeCynicism') {
@@ -148,6 +173,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             try {
                 const cynicismScore = await analyzeCynicismWithAI(request.text);
                 console.log('📤 Sending score back to content script:', cynicismScore);
+                
+                // If post is filtered, update the filtered posts list
+                if (cynicismScore > 0.5) {
+                    const url = sender.tab?.url || '';
+                    await updateFilteredPosts(request.text, cynicismScore, url);
+                }
+                
                 sendResponse({ success: true, cynicismScore });
             } catch (error) {
                 console.error('❌ Error in analysis:', error);

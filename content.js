@@ -29,42 +29,18 @@ style.textContent = `
         margin: 10px 0 !important;
         border-radius: 4px !important;
     }
-    
-    /* Toggle button */
-    #cynic-toggle {
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        z-index: 10000 !important;
-        padding: 10px 20px !important;
-        border-radius: 20px !important;
-        background: #333 !important;
-        color: white !important;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
-        border: none !important;
-        cursor: pointer !important;
-        font-weight: bold !important;
-        transition: all 0.2s ease !important;
-    }
-    #cynic-toggle:hover {
-        transform: scale(1.05) !important;
-        background: #444 !important;
-    }
 `;
 document.head.appendChild(style);
 
-// Add toggle button
-const toggleButton = document.createElement('button');
-toggleButton.id = 'cynic-toggle';
-toggleButton.textContent = 'Show Filtered Posts';
-toggleButton.style.display = 'none';
-document.body.appendChild(toggleButton);
-
 let showFiltered = false;
-toggleButton.addEventListener('click', () => {
-    showFiltered = !showFiltered;
-    toggleButton.textContent = showFiltered ? 'Hide Filtered Posts' : 'Show Filtered Posts';
-    document.body.classList.toggle('cynic-show-filtered');
+
+// Listen for messages from the popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'showFilteredPosts') {
+        showFiltered = !showFiltered;
+        document.body.classList.toggle('cynic-show-filtered');
+        sendResponse({ success: true });
+    }
 });
 
 // Selectors for different platforms
@@ -166,10 +142,22 @@ async function processPost(postElement, platform) {
     if (cynicismScore > CYNICISM_THRESHOLD) {
         console.log('🚫 Post hidden - score:', cynicismScore);
         postElement.classList.add('cynic-hidden');
-        toggleButton.style.display = 'block';
         
         // Store the cynicism state in the element
         postElement.setAttribute('data-cynicism-score', cynicismScore);
+        
+        // Update filtered posts count in storage
+        chrome.storage.local.get(['filteredPosts'], (result) => {
+            const filteredPosts = result.filteredPosts || [];
+            const newPost = {
+                text: text,
+                score: cynicismScore,
+                url: window.location.href,
+                timestamp: Date.now()
+            };
+            const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
+            chrome.storage.local.set({ filteredPosts: updatedPosts });
+        });
     }
     
     // Mark as processed
