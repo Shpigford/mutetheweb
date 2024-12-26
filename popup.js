@@ -6,8 +6,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const filteredCountDiv = document.getElementById('filteredCount');
     const showFilteredButton = document.getElementById('showFiltered');
 
+    // Filter toggles
+    const filterToggles = {
+        cynical: document.getElementById('filter-cynical'),
+        sarcastic: document.getElementById('filter-sarcastic'),
+        aggressive: document.getElementById('filter-aggressive'),
+        threatening: document.getElementById('filter-threatening')
+    };
+
     // Load saved settings and filtered count
-    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts'], (result) => {
+    chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts', 'filterSettings'], (result) => {
         console.log('📥 Loading saved settings:', { 
             hasApiKey: !!result.apiKey,
             isEnabled: result.isEnabled 
@@ -19,11 +27,49 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof result.isEnabled !== 'undefined') {
             enabledToggle.checked = result.isEnabled;
         }
+
+        // Load filter settings
+        const filterSettings = result.filterSettings || {
+            cynical: true,
+            sarcastic: false,
+            aggressive: false,
+            threatening: false
+        };
+
+        // Apply saved filter settings
+        Object.entries(filterSettings).forEach(([key, value]) => {
+            if (filterToggles[key]) {
+                filterToggles[key].checked = value;
+            }
+        });
         
         // Update filtered posts count
         const filteredCount = result.filteredPosts?.length || 0;
         filteredCountDiv.textContent = filteredCount;
         showFilteredButton.style.display = filteredCount > 0 ? 'block' : 'none';
+    });
+
+    // Save filter settings when changed
+    Object.entries(filterToggles).forEach(([key, toggle]) => {
+        toggle.addEventListener('change', () => {
+            chrome.storage.local.get(['filterSettings'], (result) => {
+                const currentSettings = result.filterSettings || {};
+                const newSettings = {
+                    ...currentSettings,
+                    [key]: toggle.checked
+                };
+
+                chrome.storage.local.set({ filterSettings: newSettings }, () => {
+                    if (chrome.runtime.lastError) {
+                        console.error('❌ Error saving filter settings:', chrome.runtime.lastError);
+                        showStatus('Error saving filter settings!', 'error');
+                    } else {
+                        console.log('✅ Filter settings saved:', newSettings);
+                        showStatus(`${key} filter ${toggle.checked ? 'enabled' : 'disabled'}!`, 'success');
+                    }
+                });
+            });
+        });
     });
 
     // Show filtered posts

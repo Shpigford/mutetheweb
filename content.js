@@ -1,18 +1,23 @@
 console.log('=== CYNIC FILTER CONTENT SCRIPT LOADED ===');
 
 // Configuration
-const CYNICISM_THRESHOLD = 0.5;
+const FILTER_THRESHOLDS = {
+    cynical: 0.5,
+    sarcastic: 0.5,
+    aggressive: 0.5,
+    threatening: 0.5
+};
 
 // Add styles to the page
 const style = document.createElement('style');
 style.textContent = `
     /* Base hiding styles */
-    .cynic-hidden {
+    .content-hidden {
         display: none !important;
     }
     
     /* Reddit-specific hiding */
-    shreddit-comment.cynic-hidden {
+    shreddit-comment.content-hidden {
         opacity: 0.3 !important;
         pointer-events: none !important;
         filter: blur(3px) !important;
@@ -20,7 +25,7 @@ style.textContent = `
     }
     
     /* Show styles */
-    .cynic-show-filtered .cynic-hidden {
+    .show-filtered .content-hidden {
         opacity: 1 !important;
         pointer-events: auto !important;
         filter: none !important;
@@ -28,6 +33,30 @@ style.textContent = `
         padding: 10px !important;
         margin: 10px 0 !important;
         border-radius: 4px !important;
+    }
+
+    /* Filter type indicators */
+    .content-hidden[data-filter-type]::before {
+        display: block;
+        padding: 4px 8px;
+        margin-bottom: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        color: white;
+        background: #ff4444;
+    }
+    .content-hidden[data-filter-type="cynical"]::before {
+        content: "Filtered: Cynical";
+    }
+    .content-hidden[data-filter-type="sarcastic"]::before {
+        content: "Filtered: Sarcastic";
+    }
+    .content-hidden[data-filter-type="aggressive"]::before {
+        content: "Filtered: Aggressive";
+    }
+    .content-hidden[data-filter-type="threatening"]::before {
+        content: "Filtered: Threatening";
     }
 `;
 document.head.appendChild(style);
@@ -81,40 +110,40 @@ function isExtensionValid() {
     }
 }
 
-// Analyze post for cynicism
-async function analyzeCynicism(text) {
+// Analyze post content
+async function analyzeContent(text) {
     try {
         if (!isExtensionValid()) {
             console.log('🔄 Extension context invalid, reloading page...');
             window.location.reload();
-            return 0;
+            return null;
         }
 
         console.log('🔄 Sending text for analysis:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
         
         return new Promise((resolve) => {
             chrome.runtime.sendMessage({
-                type: 'analyzeCynicism',
+                type: 'analyzeContent',
                 text: text
             }, (response) => {
                 console.log('📥 Received response:', response);
                 
-                if (response && response.success && typeof response.cynicismScore === 'number') {
-                    console.log('📊 Valid cynicism score:', response.cynicismScore);
-                    resolve(response.cynicismScore);
+                if (response && response.success) {
+                    console.log('📊 Valid analysis scores:', response.scores);
+                    resolve(response.scores);
                 } else {
                     if (response && response.error) {
                         console.error('❌ Analysis error:', response.error);
                     } else {
                         console.error('❌ Invalid response format:', response);
                     }
-                    resolve(0);
+                    resolve(null);
                 }
             });
         });
     } catch (error) {
-        console.error('❌ Error in analyzeCynicism:', error);
-        return 0;
+        console.error('❌ Error in analyzeContent:', error);
+        return null;
     }
 }
 
@@ -126,8 +155,8 @@ async function processPost(postElement, platform) {
         return;
     }
 
-    // Skip if we've already processed this post and it's hidden
-    if (postElement.hasAttribute('data-cynicism-processed') && postElement.classList.contains('cynic-hidden')) {
+    // Skip if we've already processed this post
+    if (postElement.hasAttribute('data-content-processed')) {
         return;
     }
 
@@ -137,31 +166,46 @@ async function processPost(postElement, platform) {
         return;
     }
 
-    const cynicismScore = await analyzeCynicism(text);
-    
-    if (cynicismScore > CYNICISM_THRESHOLD) {
-        console.log('🚫 Post hidden - score:', cynicismScore);
-        postElement.classList.add('cynic-hidden');
-        
-        // Store the cynicism state in the element
-        postElement.setAttribute('data-cynicism-score', cynicismScore);
-        
-        // Update filtered posts count in storage
-        chrome.storage.local.get(['filteredPosts'], (result) => {
-            const filteredPosts = result.filteredPosts || [];
-            const newPost = {
-                text: text,
-                score: cynicismScore,
-                url: window.location.href,
-                timestamp: Date.now()
-            };
-            const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
-            chrome.storage.local.set({ filteredPosts: updatedPosts });
-        });
-    }
+    const scores = await analyzeContent(text);
+    if (!scores) return;
+
+    // Get current filter settings
+    chrome.storage.local.get(['filterSettings'], async (result) => {
+        const filterSettings = result.filterSettings || {
+            cynical: true,
+            sarcastic: false,
+            aggressive: false,
+            threatening: false
+        };
+
+        // Check each filter type
+        for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
+            if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
+                console.log(`🚫 Post hidden - ${filterType} score:`, scores[filterType]);
+                postElement.classList.add('content-hidden');
+                postElement.setAttribute('data-filter-type', filterType);
+                
+                // Store the filtered post in storage
+                chrome.storage.local.get(['filteredPosts'], (result) => {
+                    const filteredPosts = result.filteredPosts || [];
+                    const newPost = {
+                        text: text,
+                        scores: scores,
+                        filterType: filterType,
+                        url: window.location.href,
+                        timestamp: Date.now()
+                    };
+                    const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
+                    chrome.storage.local.set({ filteredPosts: updatedPosts });
+                });
+                
+                break; // Stop after first matching filter
+            }
+        }
+    });
     
     // Mark as processed
-    postElement.setAttribute('data-cynicism-processed', 'true');
+    postElement.setAttribute('data-content-processed', 'true');
 }
 
 // Main function to process all posts

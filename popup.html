@@ -201,6 +201,20 @@
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        .filters-section {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 6px;
+        }
+
+        .filters-section .toggle-group {
+            background: white;
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -219,6 +233,36 @@
                 <input type="checkbox" id="enabled" checked>
                 <span class="slider"></span>
             </label>
+        </div>
+        <div class="filters-section">
+            <div class="toggle-group">
+                <label for="filter-cynical">Cynical Posts</label>
+                <label class="switch">
+                    <input type="checkbox" id="filter-cynical" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <label for="filter-sarcastic">Sarcastic Posts</label>
+                <label class="switch">
+                    <input type="checkbox" id="filter-sarcastic">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <label for="filter-aggressive">Aggressive Posts</label>
+                <label class="switch">
+                    <input type="checkbox" id="filter-aggressive">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="toggle-group">
+                <label for="filter-threatening">Threatening Posts</label>
+                <label class="switch">
+                    <input type="checkbox" id="filter-threatening">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
         <div class="stats-group">
             <div class="stats-header">
