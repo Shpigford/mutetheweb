@@ -110,19 +110,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Update existing filtered posts when blur mode changes
         const filteredPosts = document.querySelectorAll('.content-hidden, .content-blurred');
         filteredPosts.forEach(post => {
+            // Remove all existing filter-related classes first
+            post.classList.remove('content-hidden', 'content-blurred', 'revealed');
+            
             if (message.blurMode) {
-                post.classList.remove('content-hidden');
                 post.classList.add('content-blurred');
                 // Add click handler
-                post.addEventListener('click', function(e) {
+                const clickHandler = function(e) {
                     if (this.classList.contains('content-blurred')) {
                         e.preventDefault();
                         e.stopPropagation();
                         this.classList.add('revealed');
                     }
-                }, true);
+                };
+                // Remove existing handler if any
+                post.removeEventListener('click', clickHandler, true);
+                post.addEventListener('click', clickHandler, true);
             } else {
-                post.classList.remove('content-blurred', 'revealed');
                 post.classList.add('content-hidden');
             }
         });
@@ -324,8 +328,6 @@ async function processTweet(tweetElement) {
                         const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
                         chrome.storage.local.set({ filteredPosts: updatedPosts });
                     });
-
-                    break; // Stop after first matching filter
                 }
             }
 
