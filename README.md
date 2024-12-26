@@ -1,12 +1,12 @@
 # Mute the Web
 
-A Chrome extension that uses AI to detect and filter out cynical posts from social media platforms (Twitter and Reddit).
+A Chrome extension that uses AI to detect and filter out negative posts from X.com (formerly Twitter), making your social media experience more positive.
 
 ## Features
 
 - Analyzes posts in real-time using Llama 3.3 70B via OpenRouter API
 - Automatically hides posts with high cynicism scores (>0.5)
-- Works on Twitter (X) and Reddit
+- Works on X.com (formerly Twitter)
 - Easy to enable/disable through popup interface
 - Toggle button to show/hide filtered posts
 - Visual indicators for filtered content
@@ -28,7 +28,7 @@ A Chrome extension that uses AI to detect and filter out cynical posts from soci
 1. Click the extension icon to open the popup
 2. Enter your OpenRouter API key
 3. Use the toggle to enable/disable the filter
-4. Browse Twitter or Reddit normally - cynical posts will be hidden automatically
+4. Browse X.com normally - cynical posts will be hidden automatically
 5. Use the floating toggle button to show/hide filtered posts
 6. Filtered posts will be visually marked when shown
 

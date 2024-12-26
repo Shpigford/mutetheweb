@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const filteredCountDiv = document.getElementById('filteredCount');
     const showFilteredButton = document.getElementById('showFiltered');
     const blurModeToggle = document.getElementById('blur-mode');
+    const debugToggle = document.getElementById('debug-mode');
+    let isDebugMode = false;
 
     // Filter toggles
     const filterToggles = {
@@ -14,6 +16,50 @@ document.addEventListener('DOMContentLoaded', () => {
         aggressive: document.getElementById('filter-aggressive'),
         threatening: document.getElementById('filter-threatening')
     };
+
+    // Override console methods for debug mode
+    const originalConsole = {
+        log: console.log,
+        error: console.error
+    };
+
+    function updateConsoleLogging(debugEnabled) {
+        if (debugEnabled) {
+            console.log = originalConsole.log;
+            console.error = originalConsole.error;
+        } else {
+            console.log = () => {};
+            console.error = () => {};
+        }
+    }
+
+    // Load debug mode setting
+    chrome.storage.local.get(['debugMode'], (result) => {
+        isDebugMode = result.debugMode || false;
+        debugToggle.checked = isDebugMode;
+        updateConsoleLogging(isDebugMode);
+    });
+
+    // Debug mode toggle handler
+    debugToggle.addEventListener('change', () => {
+        isDebugMode = debugToggle.checked;
+        chrome.storage.local.set({ debugMode: isDebugMode }, () => {
+            updateConsoleLogging(isDebugMode);
+            showStatus(`Debug mode ${isDebugMode ? 'enabled' : 'disabled'}!`, 'success');
+            
+            // Notify content scripts of the debug mode change
+            chrome.tabs.query({}, function(tabs) {
+                tabs.forEach(tab => {
+                    chrome.tabs.sendMessage(tab.id, { 
+                        action: 'updateDebugMode',
+                        debugMode: isDebugMode
+                    }).catch(() => {
+                        // Ignore errors for inactive tabs
+                    });
+                });
+            });
+        });
+    });
 
     // Load saved settings and filtered count
     chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts', 'filterSettings', 'blurMode', 'processedPosts'], (result) => {

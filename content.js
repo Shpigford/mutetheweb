@@ -1,4 +1,32 @@
-console.log('=== CYNIC FILTER CONTENT SCRIPT LOADED ===');
+// Debug logging wrapper
+let debugMode = false;
+
+// Initialize debug mode
+chrome.storage.local.get(['debugMode'], (result) => {
+    debugMode = result.debugMode || false;
+});
+
+// Listen for debug mode changes
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'updateDebugMode') {
+        debugMode = message.debugMode;
+        sendResponse({ success: true });
+    }
+});
+
+function debugLog(...args) {
+    if (debugMode) {
+        console.log(...args);
+    }
+}
+
+function debugError(...args) {
+    if (debugMode) {
+        console.error(...args);
+    }
+}
+
+debugLog('=== CYNIC FILTER CONTENT SCRIPT LOADED ===');
 
 // Configuration
 const FILTER_THRESHOLDS = {
@@ -31,14 +59,6 @@ style.textContent = `
     .content-blurred.revealed {
         filter: none !important;
         user-select: auto !important;
-    }
-    
-    /* Reddit-specific hiding */
-    shreddit-comment.content-hidden {
-        opacity: 0.3 !important;
-        pointer-events: none !important;
-        filter: blur(3px) !important;
-        transition: all 0.2s ease !important;
     }
     
     /* Show styles */
@@ -110,31 +130,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-// Selectors for different platforms
-const SELECTORS = {
-    x: {
-        posts: 'article[data-testid="tweet"]',
-        text: '[data-testid="tweetText"]'
-    },
-    reddit: {
-        posts: 'shreddit-comment',
-        text: '[id$="-comment-rtjson-content"] [id="-post-rtjson-content"]'
-    }
-};
+// X.com selectors
+const TWEET_SELECTOR = 'article[data-testid="tweet"]';
+const TWEET_TEXT_SELECTOR = '[data-testid="tweetText"]';
 
-// Get the current platform
-function getCurrentPlatform() {
-    if (window.location.hostname.includes('x.com')) return 'x';
-    if (window.location.hostname.includes('reddit.com')) return 'reddit';
-    return null;
+// Check if we're on X.com
+function isOnXPlatform() {
+    return window.location.hostname.includes('x.com');
 }
 
-// Extract text from a post element
-function extractPostText(postElement, platform) {
-    const textElement = postElement.querySelector(SELECTORS[platform].text);
+// Extract text from a tweet element
+function extractTweetText(tweetElement) {
+    const textElement = tweetElement.querySelector(TWEET_TEXT_SELECTOR);
     const text = textElement ? textElement.textContent.trim() : '';
     if (text) {
-        console.log('📝 Found post text:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+        debugLog('📝 Found tweet text:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
     }
     return text;
 }
@@ -152,35 +162,35 @@ function isExtensionValid() {
 async function analyzeContent(text) {
     try {
         if (!isExtensionValid()) {
-            console.log('🔄 Extension context invalid, reloading page...');
+            debugLog('🔄 Extension context invalid, reloading page...');
             window.location.reload();
             return null;
         }
 
-        console.log('🔄 Sending text for analysis:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+        debugLog('🔄 Sending text for analysis:', text.substring(0, 100) + (text.length > 100 ? '...' : ''));
         
         return new Promise((resolve) => {
             chrome.runtime.sendMessage({
                 type: 'analyzeContent',
                 text: text
             }, (response) => {
-                console.log('📥 Received response:', response);
+                debugLog('📥 Received response:', response);
                 
                 if (response && response.success) {
-                    console.log('📊 Valid analysis scores:', response.scores);
+                    debugLog('📊 Valid analysis scores:', response.scores);
                     resolve(response.scores);
                 } else {
                     if (response && response.error) {
-                        console.error('❌ Analysis error:', response.error);
+                        debugError('❌ Analysis error:', response.error);
                     } else {
-                        console.error('❌ Invalid response format:', response);
+                        debugError('❌ Invalid response format:', response);
                     }
                     resolve(null);
                 }
             });
         });
     } catch (error) {
-        console.error('❌ Error in analyzeContent:', error);
+        debugError('❌ Error in analyzeContent:', error);
         return null;
     }
 }
@@ -188,35 +198,29 @@ async function analyzeContent(text) {
 // Cache duration in milliseconds (24 hours)
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
-// Get post ID based on platform
-function getPostId(postElement, platform) {
-    if (platform === 'x') {
-        // For Twitter/X, try to get the tweet ID from the article
-        const articleLink = postElement.querySelector('a[href*="/status/"]');
-        if (articleLink) {
-            const match = articleLink.href.match(/\/status\/(\d+)/);
-            return match ? match[1] : null;
-        }
-    } else if (platform === 'reddit') {
-        // For Reddit, use the comment ID
-        return postElement.id;
+// Get tweet ID from tweet element
+function getTweetId(tweetElement) {
+    const articleLink = tweetElement.querySelector('a[href*="/status/"]');
+    if (articleLink) {
+        const match = articleLink.href.match(/\/status\/(\d+)/);
+        return match ? match[1] : null;
     }
     return null;
 }
 
-// Check if a post is in cache
-async function isPostCached(postId) {
-    if (!postId) return false;
+// Check if a tweet is in cache
+async function isPostCached(tweetId) {
+    if (!tweetId) return false;
     
     const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
-    const cachedPost = processedPosts[postId];
+    const cachedPost = processedPosts[tweetId];
     
     if (!cachedPost) return false;
     
     // Check if cache has expired
     if (Date.now() - cachedPost.timestamp > CACHE_DURATION) {
         // Remove expired cache entry
-        delete processedPosts[postId];
+        delete processedPosts[tweetId];
         await chrome.storage.local.set({ processedPosts });
         return false;
     }
@@ -224,14 +228,14 @@ async function isPostCached(postId) {
     return true;
 }
 
-// Cache a processed post
-async function cacheProcessedPost(postId) {
-    if (!postId) return;
+// Cache a processed tweet
+async function cacheProcessedPost(tweetId) {
+    if (!tweetId) return;
     
     const { processedPosts = {} } = await chrome.storage.local.get(['processedPosts']);
     
-    // Add new post to cache
-    processedPosts[postId] = {
+    // Add new tweet to cache
+    processedPosts[tweetId] = {
         timestamp: Date.now()
     };
     
@@ -246,117 +250,120 @@ async function cacheProcessedPost(postId) {
     await chrome.storage.local.set({ processedPosts });
 }
 
-// Process a single post
-async function processPost(postElement, platform) {
+// Process a single tweet
+async function processTweet(tweetElement) {
     if (!isExtensionValid()) {
-        console.log('🔄 Extension context invalid, reloading page...');
+        debugLog('🔄 Extension context invalid, reloading page...');
         window.location.reload();
         return;
     }
 
-    const postId = getPostId(postElement, platform);
+    const tweetId = getTweetId(tweetElement);
     
-    // Skip if post is already in cache
-    if (await isPostCached(postId)) {
-        console.log('📦 Post found in cache, skipping analysis:', postId);
+    // Skip if tweet is already in cache
+    if (await isPostCached(tweetId)) {
+        debugLog('📦 Tweet found in cache, skipping analysis:', tweetId);
         return;
     }
 
-    // Skip if we've already processed this post in this session
-    if (postElement.hasAttribute('data-content-processed')) {
+    // Skip if we've already processed this tweet in this session
+    if (tweetElement.hasAttribute('data-content-processed')) {
         return;
     }
 
-    const text = extractPostText(postElement, platform);
+    const text = extractTweetText(tweetElement);
     if (!text) {
-        console.log('⚠️ No text found in post, skipping...');
+        debugLog('⚠️ No text found in tweet, skipping...');
         return;
     }
 
-    const scores = await analyzeContent(text);
-    if (!scores) return;
+    return analyzeContent(text).then(scores => {
+        if (!scores) return;
 
-    chrome.storage.local.get(['filterSettings', 'blurMode'], async (result) => {
-        const filterSettings = result.filterSettings || {
-            cynical: true,
-            sarcastic: false,
-            aggressive: false,
-            threatening: false
-        };
+        chrome.storage.local.get(['filterSettings', 'blurMode'], async (result) => {
+            const filterSettings = result.filterSettings || {
+                cynical: true,
+                sarcastic: false,
+                aggressive: false,
+                threatening: false
+            };
 
-        const blurMode = result.blurMode || false;
+            const blurMode = result.blurMode || false;
 
-        // Check each filter type
-        for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
-            if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
-                console.log(`🚫 Post ${blurMode ? 'blurred' : 'hidden'} - ${filterType} score:`, scores[filterType]);
-                
-                if (blurMode) {
-                    postElement.classList.add('content-blurred');
-                    // Add click handler for revealing blurred content
-                    postElement.addEventListener('click', function(e) {
-                        if (this.classList.contains('content-blurred')) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            this.classList.add('revealed');
-                        }
-                    }, true);
-                } else {
-                    postElement.classList.add('content-hidden');
+            // Check each filter type
+            for (const [filterType, isEnabled] of Object.entries(filterSettings)) {
+                if (isEnabled && scores[filterType] > FILTER_THRESHOLDS[filterType]) {
+                    debugLog(`🚫 Tweet ${blurMode ? 'blurred' : 'hidden'} - ${filterType} score:`, scores[filterType]);
+                    
+                    if (blurMode) {
+                        tweetElement.classList.add('content-blurred');
+                        // Add click handler for revealing blurred content
+                        tweetElement.addEventListener('click', function(e) {
+                            if (this.classList.contains('content-blurred')) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                this.classList.add('revealed');
+                            }
+                        }, true);
+                    } else {
+                        tweetElement.classList.add('content-hidden');
+                    }
+                    
+                    tweetElement.setAttribute('data-filter-type', filterType);
+                    
+                    // Store the filtered tweet in storage
+                    chrome.storage.local.get(['filteredPosts'], (result) => {
+                        const filteredPosts = result.filteredPosts || [];
+                        const newPost = {
+                            text: text,
+                            scores: scores,
+                            filterType: filterType,
+                            url: window.location.href,
+                            timestamp: Date.now()
+                        };
+                        const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
+                        chrome.storage.local.set({ filteredPosts: updatedPosts });
+                    });
+
+                    break; // Stop after first matching filter
                 }
-                
-                postElement.setAttribute('data-filter-type', filterType);
-                
-                // Store the filtered post in storage
-                chrome.storage.local.get(['filteredPosts'], (result) => {
-                    const filteredPosts = result.filteredPosts || [];
-                    const newPost = {
-                        text: text,
-                        scores: scores,
-                        filterType: filterType,
-                        url: window.location.href,
-                        timestamp: Date.now()
-                    };
-                    const updatedPosts = [newPost, ...filteredPosts].slice(0, 100);
-                    chrome.storage.local.set({ filteredPosts: updatedPosts });
-                });
-                
-                break; // Stop after first matching filter
             }
-        }
 
-        // Cache the processed post
-        await cacheProcessedPost(postId);
+            // Cache the processed tweet
+            await cacheProcessedPost(tweetId);
+        });
+
+        // Mark as processed
+        tweetElement.setAttribute('data-content-processed', 'true');
     });
-
-    // Mark as processed
-    postElement.setAttribute('data-content-processed', 'true');
 }
 
-// Main function to process all posts
-async function processPosts() {
+// Main function to process all tweets
+async function processTweets() {
     if (!isExtensionValid()) {
-        console.log('🔄 Extension context invalid, reloading page...');
+        debugLog('🔄 Extension context invalid, reloading page...');
         window.location.reload();
         return;
     }
 
-    const platform = getCurrentPlatform();
-    if (!platform) {
-        console.log('⚠️ Not on a supported platform');
+    if (!isOnXPlatform()) {
+        debugLog('⚠️ Not on X.com platform');
         return;
     }
 
-    console.log('🔍 Scanning for posts on platform:', platform);
-    const posts = document.querySelectorAll(SELECTORS[platform].posts);
-    console.log(`📑 Found ${posts.length} posts to process`);
+    debugLog('🔍 Scanning for tweets');
+    const tweets = document.querySelectorAll(TWEET_SELECTOR);
+    debugLog(`📑 Found ${tweets.length} tweets to process`);
 
-    for (const post of posts) {
-        if (!post.hasAttribute('data-cynicism-processed')) {
-            post.setAttribute('data-cynicism-processed', 'true');
-            await processPost(post, platform);
-        }
-    }
+    // Process tweets in parallel with Promise.all
+    const promises = Array.from(tweets)
+        .filter(tweet => !tweet.hasAttribute('data-cynicism-processed'))
+        .map(tweet => {
+            tweet.setAttribute('data-cynicism-processed', 'true');
+            return processTweet(tweet);
+        });
+
+    await Promise.all(promises);
 }
 
 // Debounce function
@@ -372,37 +379,33 @@ function debounce(func, wait) {
     };
 }
 
-// Process posts with debouncing
-const debouncedProcessPosts = debounce(processPosts, 1000);
+// Process tweets with reduced debounce delay
+const debouncedProcessTweets = debounce(processTweets, 250);
 
-// Observer to watch for new posts
+// Observer to watch for new tweets
 const observer = new MutationObserver((mutations) => {
     if (!isExtensionValid()) {
         observer.disconnect();
-        console.log('🔄 Extension context invalid, reloading page...');
+        debugLog('🔄 Extension context invalid, reloading page...');
         window.location.reload();
         return;
     }
 
     // Check if any of the mutations are relevant
     const hasRelevantChanges = mutations.some(mutation => {
-        // Check if the mutation target or any added nodes match our selectors
-        const platform = getCurrentPlatform();
-        if (!platform) return false;
-
-        // Check the mutation target
-        if (mutation.target.matches && mutation.target.matches(SELECTORS[platform].posts)) {
+        // Check if the mutation target or any added nodes match our tweet selector
+        if (mutation.target.matches && mutation.target.matches(TWEET_SELECTOR)) {
             return true;
         }
 
         // Check added nodes
         if (mutation.addedNodes.length) {
             return Array.from(mutation.addedNodes).some(node => {
-                if (node.matches && node.matches(SELECTORS[platform].posts)) {
+                if (node.matches && node.matches(TWEET_SELECTOR)) {
                     return true;
                 }
                 if (node.querySelector) {
-                    return !!node.querySelector(SELECTORS[platform].posts);
+                    return !!node.querySelector(TWEET_SELECTOR);
                 }
                 return false;
             });
@@ -412,20 +415,20 @@ const observer = new MutationObserver((mutations) => {
     });
 
     if (hasRelevantChanges) {
-        console.log('👀 Relevant DOM changes detected, scheduling post processing...');
-        debouncedProcessPosts();
+        debugLog('👀 New tweets detected, scheduling processing...');
+        debouncedProcessTweets();
     }
 });
 
 // Start observing with more specific configuration
-console.log('🚀 Starting Cynic Filter...');
+debugLog('🚀 Starting Cynic Filter...');
 observer.observe(document.body, {
     childList: true,
     subtree: true,
-    attributes: true, // Enable attribute monitoring
-    attributeFilter: ['style', 'class'], // Only watch for style and class changes
+    attributes: true,
+    attributeFilter: ['style', 'class'],
     characterData: false
 });
 
 // Initial processing
-processPosts(); 
+processTweets(); 

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Mute the Web",
   "version": "1.0",
-  "description": "Filters out cynical posts from social media using AI analysis",
+  "description": "Uses AI to filter out negative posts from your X.com feed, making social media more positive",
   "permissions": [
     "storage",
     "activeTab",
@@ -11,7 +11,6 @@
   ],
   "host_permissions": [
     "https://*.x.com/*",
-    "https://*.reddit.com/*",
     "https://openrouter.ai/*"
   ],
   "action": {
@@ -27,8 +26,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.x.com/*",
-        "https://*.reddit.com/*"
+        "https://*.x.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

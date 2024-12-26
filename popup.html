@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mute the Web</title>
+    <title>Mute X.com</title>
     <style>
         :root {
-            --primary-color: #6366f1;
-            --primary-hover: #4f46e5;
+            --primary-color: #111;
+            --primary-hover: #444;
             --bg-color: #ffffff;
             --text-color: #1f2937;
             --border-color: #e5e7eb;
@@ -26,11 +26,12 @@
         .header {
             background: var(--primary-color);
             color: white;
-            padding: 16px;
+            padding: 12px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
         }
 
         .header img {
@@ -48,7 +49,7 @@
             padding: 0 16px 16px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 12px;
         }
 
         .input-group {
@@ -68,6 +69,7 @@
             border: 1px solid var(--border-color);
             border-radius: 6px;
             font-size: 14px;
+            font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
             transition: all 0.2s;
             outline: none;
         }
@@ -236,13 +238,17 @@
 </head>
 <body>
     <div class="header">
-        <img src="images/icon48.png" alt="Mute the Web">
-        <h1>Mute the Web</h1>
+        <img src="images/icon48.png" alt="MuteTheWeb">
+        <h1>MuteTheWeb</h1>
     </div>
     <div class="container">
         <div class="input-group">
             <label for="apiKey">OpenRouter API Key</label>
             <input type="text" id="apiKey" placeholder="Enter your API key">
+            <div style="font-size: 12px; margin-top: 4px; color: #666;">
+                <a href="https://openrouter.ai/settings/keys" target="_blank" style="color: #666; text-decoration: underline;">Generate an OpenRouter API key here</a>
+                <p style="margin: 4px 0;">Note: This extension requires OpenRouter credits. Each post analysis costs approximately $0.00002.</p>
+            </div>
         </div>
         <div class="toggle-group">
             <label for="enabled">Enable Filter</label>
@@ -287,6 +293,13 @@
                     <span class="slider"></span>
                 </label>
             </div>
+        </div>
+        <div class="toggle-group">
+            <label for="debug-mode">Debug Mode</label>
+            <label class="switch">
+                <input type="checkbox" id="debug-mode">
+                <span class="slider"></span>
+            </label>
         </div>
         <div class="stats-group">
             <div class="stats-header">

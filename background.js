@@ -1,11 +1,49 @@
-console.log('=== CYNIC FILTER BACKGROUND SCRIPT LOADED ===');
+// Debug logging wrapper
+let debugMode = false;
+
+// Initialize debug mode
+chrome.storage.local.get(['debugMode'], (result) => {
+    debugMode = result.debugMode || false;
+});
+
+// Listen for debug mode changes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local' && changes.debugMode) {
+        debugMode = changes.debugMode.newValue;
+    }
+});
+
+function debugLog(...args) {
+    if (debugMode) {
+        console.log(...args);
+    }
+}
+
+function debugError(...args) {
+    if (debugMode) {
+        console.error(...args);
+    }
+}
+
+debugLog('=== CYNIC FILTER BACKGROUND SCRIPT LOADED ===');
 
 // OpenRouter API configuration
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
+// Function to update extension badge based on API key status
+async function updateBadgeStatus() {
+    const { apiKey } = await chrome.storage.local.get(['apiKey']);
+    if (!apiKey) {
+        chrome.action.setBadgeText({ text: '!' });
+        chrome.action.setBadgeBackgroundColor({ color: '#FF0000' });
+    } else {
+        chrome.action.setBadgeText({ text: '' });
+    }
+}
+
 // Initialize extension settings only if they don't exist
 chrome.runtime.onInstalled.addListener(() => {
-    console.log('🔧 Checking initial settings...');
+    debugLog('🔧 Checking initial settings...');
     chrome.storage.local.get(['apiKey', 'isEnabled', 'filteredPosts'], (result) => {
         const updates = {};
         
@@ -27,31 +65,45 @@ chrome.runtime.onInstalled.addListener(() => {
         // Only save if we have updates to make
         if (Object.keys(updates).length > 0) {
             chrome.storage.local.set(updates, () => {
-                console.log('✅ Default settings initialized:', updates);
+                debugLog('✅ Default settings initialized:', updates);
+                updateBadgeStatus(); // Update badge after initialization
             });
         } else {
-            console.log('✅ Using existing settings:', {
+            debugLog('✅ Using existing settings:', {
                 hasApiKey: !!result.apiKey,
                 isEnabled: result.isEnabled,
                 filteredPostsCount: result.filteredPosts?.length || 0
             });
+            updateBadgeStatus(); // Update badge with existing settings
         }
     });
 });
 
+// Listen for changes to the API key
+chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (namespace === 'local') {
+        if (changes.debugMode) {
+            debugMode = changes.debugMode.newValue;
+        }
+        if (changes.apiKey) {
+            updateBadgeStatus(); // Update badge when API key changes
+        }
+    }
+});
+
 // Function to analyze text for different types of content using OpenRouter API
 async function analyzeContentWithAI(text) {
-    console.log('🤖 Starting AI analysis for text:', text);
+    debugLog('🤖 Starting AI analysis for text:', text);
     
     const { apiKey, isEnabled } = await chrome.storage.local.get(['apiKey', 'isEnabled']);
     
     if (!isEnabled) {
-        console.log('⚠️ Extension is disabled');
+        debugLog('⚠️ Extension is disabled');
         return null;
     }
 
     if (!apiKey) {
-        console.error('❌ API key not set - please set your OpenRouter API key in the extension popup');
+        debugError('❌ API key not set - please set your OpenRouter API key in the extension popup');
         throw new Error('API key not set');
     }
 
@@ -66,8 +118,8 @@ async function analyzeContentWithAI(text) {
 Text: "${text}"`;
     
     try {
-        console.log('🔄 Making API request with prompt:', prompt);
-        console.log('🔑 Using API key:', apiKey.substring(0, 4) + '...');
+        debugLog('🔄 Making API request with prompt:', prompt);
+        debugLog('🔑 Using API key:', apiKey.substring(0, 4) + '...');
         
         const requestBody = {
             model: 'meta-llama/llama-3.3-70b-instruct',
@@ -91,7 +143,7 @@ Text: "${text}"`;
             presence_penalty: 0
         };
         
-        console.log('📤 Request body:', requestBody);
+        debugLog('📤 Request body:', requestBody);
         
         const response = await fetch(OPENROUTER_API_URL, {
             method: 'POST',
@@ -104,11 +156,11 @@ Text: "${text}"`;
             body: JSON.stringify(requestBody)
         });
 
-        console.log('📥 Response status:', response.status, response.statusText);
+        debugLog('📥 Response status:', response.status, response.statusText);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ API request failed:', {
+            debugError('❌ API request failed:', {
                 status: response.status,
                 statusText: response.statusText,
                 response: errorText
@@ -116,13 +168,13 @@ Text: "${text}"`;
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
 
-        console.log('✅ Response received, parsing JSON...');
+        debugLog('✅ Response received, parsing JSON...');
         const data = await response.json();
-        console.log('📥 Raw API Response:', data);
+        debugLog('📥 Raw API Response:', data);
 
         // Extract the response text and parse JSON
         const responseText = data?.choices?.[0]?.message?.content?.trim() || '';
-        console.log('📥 Raw response text:', responseText);
+        debugLog('📥 Raw response text:', responseText);
 
         try {
             // Try to extract JSON from the response if it contains other text
@@ -137,7 +189,7 @@ Text: "${text}"`;
             const hasAllFields = requiredFields.every(field => typeof scores[field] === 'number');
             
             if (!hasAllFields) {
-                console.error('❌ Response missing required fields');
+                debugError('❌ Response missing required fields');
                 return null;
             }
             
@@ -146,15 +198,15 @@ Text: "${text}"`;
                 scores[key] = Math.max(0, Math.min(1, parseFloat(scores[key]) || 0));
             });
             
-            console.log('📊 Final content scores:', scores);
+            debugLog('📊 Final content scores:', scores);
             return scores;
         } catch (error) {
-            console.error('❌ Error parsing response JSON:', error);
-            console.error('Raw response was:', responseText);
+            debugError('❌ Error parsing response JSON:', error);
+            debugError('Raw response was:', responseText);
             return null;
         }
     } catch (error) {
-        console.error('❌ Error during API call:', error);
+        debugError('❌ Error during API call:', error);
         throw error;
     }
 }
@@ -182,13 +234,13 @@ async function updateFilteredPosts(text, scores, filterType, url) {
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'analyzeContent') {
-        console.log('📨 Received analysis request from content script for text:', request.text);
+        debugLog('📨 Received analysis request from content script for text:', request.text);
         
         // Create an async wrapper function
         const handleAnalysis = async () => {
             try {
                 const scores = await analyzeContentWithAI(request.text);
-                console.log('📤 Sending scores back to content script:', scores);
+                debugLog('📤 Sending scores back to content script:', scores);
                 
                 if (scores) {
                     const url = sender.tab?.url || '';
@@ -199,14 +251,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     sendResponse({ success: false, error: 'Failed to analyze content' });
                 }
             } catch (error) {
-                console.error('❌ Error in analysis:', error);
+                debugError('❌ Error in analysis:', error);
                 sendResponse({ success: false, error: error.message });
             }
         };
 
         // Execute the analysis and keep the message channel open
         handleAnalysis().catch(error => {
-            console.error('❌ Unhandled error in analysis:', error);
+            debugError('❌ Unhandled error in analysis:', error);
             sendResponse({ success: false, error: error.message });
         });
 
