@@ -55,7 +55,7 @@ async function analyzeContentWithAI(text) {
         throw new Error('API key not set');
     }
 
-    const prompt = `Analyze the following text and rate it on a scale of 0 to 1 for different characteristics. Only respond with JSON in this exact format:
+    const prompt = `Analyze the following text and rate it on a scale of 0 to 1 for different characteristics. Respond with ONLY a JSON object in this exact format, nothing else:
 {
     "cynical": 0.0,
     "sarcastic": 0.0,
@@ -63,9 +63,7 @@ async function analyzeContentWithAI(text) {
     "threatening": 0.0
 }
 
-Text: "${text}"
-
-Rating:`;
+Text: "${text}"`;
     
     try {
         console.log('🔄 Making API request with prompt:', prompt);
@@ -75,10 +73,17 @@ Rating:`;
             model: 'meta-llama/llama-3.3-70b-instruct',
             messages: [
                 {
+                    role: 'system',
+                    content: 'You are a content analyzer that exclusively responds with JSON. Never include any other text or explanation in your response.'
+                },
+                {
                     role: 'user',
                     content: prompt
                 }
             ],
+            provider: {
+                ignore: ["Lambda"]
+            },
             temperature: 0,
             max_tokens: 200,
             top_p: 1,
@@ -120,7 +125,21 @@ Rating:`;
         console.log('📥 Raw response text:', responseText);
 
         try {
-            const scores = JSON.parse(responseText);
+            // Try to extract JSON from the response if it contains other text
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? jsonMatch[0] : responseText;
+            
+            // Parse the JSON
+            const scores = JSON.parse(jsonStr);
+            
+            // Validate the required fields
+            const requiredFields = ['cynical', 'sarcastic', 'aggressive', 'threatening'];
+            const hasAllFields = requiredFields.every(field => typeof scores[field] === 'number');
+            
+            if (!hasAllFields) {
+                console.error('❌ Response missing required fields');
+                return null;
+            }
             
             // Ensure all scores are between 0 and 1
             Object.keys(scores).forEach(key => {
@@ -131,6 +150,7 @@ Rating:`;
             return scores;
         } catch (error) {
             console.error('❌ Error parsing response JSON:', error);
+            console.error('Raw response was:', responseText);
             return null;
         }
     } catch (error) {
