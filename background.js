@@ -151,7 +151,7 @@ Text: "${text}"`;
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${apiKey}`,
                 'HTTP-Referer': 'https://github.com/Shpigford/mutetheweb',
-                'X-Title': 'Mute the Web'
+                'X-Title': 'MuteTheWeb'
             },
             body: JSON.stringify(requestBody)
         });
