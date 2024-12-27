@@ -241,4 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (clearCacheButton) {
         clearCacheButton.addEventListener('click', clearCache);
     }
+
+    // Add view stats button event listener
+    const viewStatsButton = document.getElementById('viewStats');
+    if (viewStatsButton) {
+        viewStatsButton.addEventListener('click', () => {
+            chrome.tabs.create({ url: 'stats.html' });
+        });
+    }
 }); 

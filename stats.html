@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MuteTheWeb Stats</title>
+    <style>
+        :root {
+            --primary-color: #111;
+            --primary-hover: #444;
+            --bg-color: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-bg: #dcfce7;
+            --success-text: #166534;
+            --error-bg: #fee2e2;
+            --error-text: #991b1b;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--primary-color);
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: -20px -20px 20px -20px;
+        }
+
+        .header img {
+            width: 24px;
+            height: 24px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 8px 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #6b7280;
+            text-transform: capitalize;
+        }
+
+        .posts-container {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .posts-header {
+            background: #f9fafb;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+        }
+
+        .post {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .post:last-child {
+            border-bottom: none;
+        }
+
+        .post-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .post-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .post-content {
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 8px 0;
+        }
+
+        .post-scores {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .score-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .score-bar {
+            width: 50px;
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .score-fill {
+            height: 100%;
+            background: var(--primary-color);
+        }
+
+        .no-posts {
+            padding: 32px;
+            text-align: center;
+            color: #6b7280;
+        }
+
+        .post-link {
+            color: #2563eb;
+            text-decoration: none;
+            font-size: 12px;
+        }
+
+        .post-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="images/icon48.png" alt="MuteTheWeb">
+        <h1>Blocked Content Stats</h1>
+    </div>
+
+    <div class="stats-container" id="statsCards">
+        <!-- Stats cards will be inserted here -->
+    </div>
+
+    <div class="posts-container">
+        <div class="posts-header">Recent Blocked Posts (Last 24 Hours)</div>
+        <div id="postsContainer">
+            <!-- Posts will be inserted here -->
+        </div>
+    </div>
+
+    <script src="stats.js"></script>
+</body>
+</html> 

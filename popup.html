@@ -234,12 +234,39 @@
             background: #e5e7eb;
             color: #333;
         }
+
+        .stats-button {
+            margin-left: auto;
+            background: white;
+            color: var(--primary-color);
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats-button:hover {
+            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <img src="images/icon48.png" alt="MuteTheWeb">
         <h1>MuteTheWeb</h1>
+        <button class="stats-button" id="viewStats">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 3v18h18v-2H5V3H3zm4 10h2v6H7v-6zm4-4h2v10h-2V9zm4-4h2v14h-2V5z" />
+            </svg>
+            View Stats
+        </button>
     </div>
     <div class="container">
         <div class="input-group">
@@ -321,7 +348,9 @@
                 <button class="show-filtered" id="showFiltered">Show Filtered</button>
             </div>
             <div class="filtered-count" id="filteredCount">0</div>
-            <button class="clear-cache" id="clearCache">Clear Cache</button>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+                <button class="clear-cache" id="clearCache">Clear Cache</button>
+            </div>
         </div>
         <div id="status" class="status"></div>
     </div>
