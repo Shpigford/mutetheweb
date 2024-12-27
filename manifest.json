@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Mute the Web",
-  "version": "1.1",
-  "description": "Uses AI to filter out negative posts from your X.com feed, making social media more positive",
+  "name": "MuteTheWeb",
+  "version": "1.2",
+  "description": "AI-powered content filter that makes X.com (Twitter) more positive by detecting and filtering out cynical, sarcastic, threatening, political, and discriminatory posts.",
   "permissions": [
     "storage",
     "activeTab",
