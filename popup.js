@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterToggles = {
         cynical: document.getElementById('filter-cynical'),
         sarcastic: document.getElementById('filter-sarcastic'),
-        aggressive: document.getElementById('filter-aggressive'),
         threatening: document.getElementById('filter-threatening'),
         politics: document.getElementById('filter-politics'),
         racism: document.getElementById('filter-racism')
@@ -86,7 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const filterSettings = result.filterSettings || {
             cynical: true,
             sarcastic: false,
-            aggressive: false,
             threatening: false,
             politics: false,
             racism: false

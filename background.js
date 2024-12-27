@@ -111,7 +111,6 @@ async function analyzeContentWithAI(text) {
 {
     "cynical": 0.0,
     "sarcastic": 0.0,
-    "aggressive": 0.0,
     "threatening": 0.0,
     "politics": 0.0,
     "racism": 0.0
@@ -120,7 +119,6 @@ async function analyzeContentWithAI(text) {
 Here are definitions for each of the fields:
 - "cynical": 0.0 - The text is highly cynical and negative.
 - "sarcastic": 0.0 - The text is sarcastic and mocking.
-- "aggressive": 0.0 - The text is aggressive and hostile.
 - "threatening": 0.0 - The text is threatening and contains violent or harmful content.
 - "politics": 0.0 - The text is highly political and contains political content.
 - "racism": 0.0 - The text contains racist content, hate speech, or discriminatory language.
@@ -195,7 +193,7 @@ Text: "${text}"`;
             const scores = JSON.parse(jsonStr);
             
             // Validate the required fields
-            const requiredFields = ['cynical', 'sarcastic', 'aggressive', 'threatening'];
+            const requiredFields = ['cynical', 'sarcastic', 'threatening'];
             const hasAllFields = requiredFields.every(field => typeof scores[field] === 'number');
             
             if (!hasAllFields) {

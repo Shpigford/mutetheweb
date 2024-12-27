@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         total: recentPosts.length,
         cynical: 0,
         sarcastic: 0,
-        aggressive: 0,
         threatening: 0,
         politics: 0,
         racism: 0

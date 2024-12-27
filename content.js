@@ -32,7 +32,6 @@ debugLog('=== CYNIC FILTER CONTENT SCRIPT LOADED ===');
 const FILTER_THRESHOLDS = {
     cynical: 0.5,
     sarcastic: 0.5,
-    aggressive: 0.5,
     threatening: 0.5,
     politics: 0.5,
     racism: 0.5
@@ -90,9 +89,6 @@ style.textContent = `
     }
     .content-hidden[data-filter-type="sarcastic"]::before {
         content: "Filtered: Sarcastic";
-    }
-    .content-hidden[data-filter-type="aggressive"]::before {
-        content: "Filtered: Aggressive";
     }
     .content-hidden[data-filter-type="threatening"]::before {
         content: "Filtered: Threatening";
@@ -305,7 +301,6 @@ async function processTweet(tweetElement) {
         const filterSettings = result.filterSettings || {
             cynical: true,
             sarcastic: false,
-            aggressive: false,
             threatening: false
         };
 
