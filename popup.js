@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         cynical: document.getElementById('filter-cynical'),
         sarcastic: document.getElementById('filter-sarcastic'),
         aggressive: document.getElementById('filter-aggressive'),
-        threatening: document.getElementById('filter-threatening')
+        threatening: document.getElementById('filter-threatening'),
+        politics: document.getElementById('filter-politics')
     };
 
     // Override console methods for debug mode

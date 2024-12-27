@@ -33,7 +33,8 @@ const FILTER_THRESHOLDS = {
     cynical: 0.5,
     sarcastic: 0.5,
     aggressive: 0.5,
-    threatening: 0.5
+    threatening: 0.5,
+    politics: 0.5
 };
 
 // Add styles to the page
