@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Mute the Web",
+  "name": "MuteTheWeb",
   "version": "1.2",
   "description": "AI-powered content filter that makes X.com more positive by detecting and filtering out cynical, sarcastic, and negative posts",
   "permissions": [
