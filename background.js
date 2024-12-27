@@ -113,7 +113,8 @@ async function analyzeContentWithAI(text) {
     "sarcastic": 0.0,
     "aggressive": 0.0,
     "threatening": 0.0,
-    "politics": 0.0
+    "politics": 0.0,
+    "racism": 0.0
 }
 
 Here are definitions for each of the fields:
@@ -122,6 +123,7 @@ Here are definitions for each of the fields:
 - "aggressive": 0.0 - The text is aggressive and hostile.
 - "threatening": 0.0 - The text is threatening and contains violent or harmful content.
 - "politics": 0.0 - The text is highly political and contains political content.
+- "racism": 0.0 - The text contains racist content, hate speech, or discriminatory language.
 
 Text: "${text}"`;
     

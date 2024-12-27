@@ -15,7 +15,8 @@ document.addEventListener('DOMContentLoaded', () => {
         sarcastic: document.getElementById('filter-sarcastic'),
         aggressive: document.getElementById('filter-aggressive'),
         threatening: document.getElementById('filter-threatening'),
-        politics: document.getElementById('filter-politics')
+        politics: document.getElementById('filter-politics'),
+        racism: document.getElementById('filter-racism')
     };
 
     // Override console methods for debug mode
@@ -86,7 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
             cynical: true,
             sarcastic: false,
             aggressive: false,
-            threatening: false
+            threatening: false,
+            politics: false,
+            racism: false
         };
 
         // Apply saved filter settings

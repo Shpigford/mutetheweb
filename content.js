@@ -34,7 +34,8 @@ const FILTER_THRESHOLDS = {
     sarcastic: 0.5,
     aggressive: 0.5,
     threatening: 0.5,
-    politics: 0.5
+    politics: 0.5,
+    racism: 0.5
 };
 
 // Add styles to the page
@@ -95,6 +96,12 @@ style.textContent = `
     }
     .content-hidden[data-filter-type="threatening"]::before {
         content: "Filtered: Threatening";
+    }
+    .content-hidden[data-filter-type="politics"]::before {
+        content: "Filtered: Political";
+    }
+    .content-hidden[data-filter-type="racism"]::before {
+        content: "Filtered: Racist Content";
     }
 `;
 document.head.appendChild(style);
