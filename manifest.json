@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mute the Web",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Uses AI to filter out negative posts from your X.com feed, making social media more positive",
   "permissions": [
     "storage",
