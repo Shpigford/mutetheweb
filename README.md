@@ -1,6 +1,8 @@
-# Mute the Web
+# MuteTheWeb
 
 A Chrome extension that uses AI to detect and filter out negative posts from X.com (formerly Twitter), making your social media experience more positive.
+
+If you don't want to install locally, you can [install directly from the Chrome store](https://chromewebstore.google.com/detail/mutetheweb/lcjcejcipcckbpdifocacficnnfgbngj).
 
 ## Features
 
