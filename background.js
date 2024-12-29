@@ -130,7 +130,7 @@ Text: "${text}"`;
         debugLog('🔑 Using API key:', apiKey.substring(0, 4) + '...');
         
         const requestBody = {
-            model: 'meta-llama/llama-3.3-70b-instruct',
+            model: 'meta-llama/llama-3.1-70b-instruct:free',
             messages: [
                 {
                     role: 'system',
